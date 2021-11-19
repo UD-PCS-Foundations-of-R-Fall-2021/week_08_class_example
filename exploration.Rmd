@@ -1,0 +1,450 @@
+---
+title: "Untitled"
+author: "Ryan Harrington"
+date: "11/15/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(RSocrata)
+```
+
+```{r}
+childcare <- read.socrata("https://data.delaware.gov/resource/iuzd-3dbt.csv")
+```
+
+```{r}
+summary(childcare)
+```
+
+```{r}
+glimpse(childcare)
+```
+
+```{r}
+childcare %>% 
+  count(site_county)
+
+childcare %>% 
+  count(site_city)
+
+childcare %>% 
+  ggplot(aes(x = capacity)) +
+  geom_histogram()
+```
+
+# R is vectorized
+
+```{r}
+top_ten <- 1:10
+top_ten - 8
+```
+
+```{r}
+top_ten <- 1:10
+top_ten_reversed <- 10:1
+lost_numbers <- c(4, 8, 15, 16, 23, 42)
+jennys_number <- c(8, 6, 7, 5, 3, 0, 9)
+transcendental_numbers <- c(pi, 1.618, 2 * pi, 2.718)
+```
+
+```{r}
+median(top_ten)
+median(top_ten_reversed)
+median(lost_numbers)
+```
+
+```{r}
+median(top_ten, top_ten_reversed, lost_numbers, jennys_number, transcendental_numbers)
+```
+
+```{r}
+median(list(top_ten, top_ten_reversed, lost_numbers, jennys_number, transcendental_numbers))
+```
+
+# Writing loops
+
+## for loop
+## while loop
+
+```{r, eval = F}
+<type of loop> {
+  
+  body
+  
+}
+```
+
+```{r}
+for (i in 1:10) {
+  
+  print(i)
+  
+}
+```
+
+```{r}
+sample_list <- list(top_ten = top_ten, 
+                    top_ten_reversed = top_ten_reversed, 
+                    lost_numbers = lost_numbers, 
+                    jennys_number = jennys_number, 
+                    transcendental_numbers = transcendental_numbers)
+```
+
+```{r}
+sample_list[1]
+sample_list[[1]]
+sample_list[[2]]
+sample_list[[3]]
+```
+
+
+```{r}
+for (i in 1:length(sample_list)) {
+  
+  list_median <- median(sample_list[[i]])
+  
+  print(list_median)
+  
+}
+```
+
+```{r}
+for (name in names(sample_list)) {
+  
+  list_median <- median(sample_list[[name]])
+  
+  print(list_median)
+  
+}
+```
+
+## Loops with dataframes
+
+```{r}
+class(childcare$resource_id)
+class(childcare[["resource_id"]])
+```
+
+```{r}
+for (col in colnames(childcare)) {
+  
+  childcare_class <- class(childcare[[col]])
+  
+  statement <- paste0(col, ": ", childcare_class)
+  
+  print(statement)
+  
+}
+```
+## while loops
+
+Throwing two dice until both dice have the same number showing.
+
+```{r}
+dice <- 1:6
+
+current_dice <- sample(dice, 2, replace = T)
+
+current_dice[1]
+current_dice[2]
+```
+
+```{r}
+dice <- 1:6
+current_dice <- c(1, 2)
+
+while (current_dice[1] != current_dice[2]) {
+  
+  current_dice <- sample(dice, 2, replace = T)
+  
+  print(current_dice)
+  
+}
+```
+
+# Mapping
+
+```{r}
+for (i in 1:length(sample_list)) {
+  
+  list_median <- median(sample_list[[i]])
+  
+  print(list_median)
+  
+}
+```
+
+```{r}
+map(sample_list, 
+    median)
+```
+
+```{r}
+for (col in colnames(childcare)) {
+  
+  childcare_class <- class(childcare[[col]])
+  
+  statement <- paste0(col, ": ", childcare_class)
+  
+  print(statement)
+  
+}
+```
+
+```{r}
+childcare_class <- map(childcare, class)
+```
+
+```{r}
+map(childcare, class)
+map(childcare, ~ class(.))
+map(childcare, ~ class(.x))
+map(childcare, ~ class(..1))
+```
+
+```{r}
+sample_list_medians <- 
+  map_dbl(sample_list, 
+          median)
+
+sample_list_medians - 8
+```
+
+```{r}
+map_chr(childcare, class)
+```
+
+```{r}
+length(unique(childcare$resource_id))
+```
+
+
+```{r}
+childcare %>% 
+  map_int(~ length(unique(.)))
+```
+
+```{r}
+childcare %>% 
+  map_df(class)
+```
+
+```{r}
+peek <- function(field){
+  
+  field_class <- class(field)
+  num_distinct <- length(unique(field))
+  num_NA <- sum(is.na(field))
+  
+  return(data.frame(class = field_class,
+                    n_distinct = num_distinct,
+                    num_NA = num_NA))
+  
+}
+```
+
+```{r}
+childcare %>% 
+  map_df(peek,
+         .id = "field")
+```
+
+```{r}
+source("clean_childcare.R")
+```
+```{r}
+childcare_cols <- 
+  childcare_clean %>% 
+  map_df(peek,
+         .id = "field")
+```
+
+## Histograms
+
+```{r}
+field_nums <- 
+  childcare_cols %>% 
+  filter(class %in% c("POSIXct", "numeric", "integer")) %>% 
+  pull(field)
+```
+
+```{r}
+.x <- field_nums[2]
+
+childcare_clean %>% 
+  ggplot(aes(x = .data[[.x]])) + 
+  geom_histogram()
+```
+
+```{r}
+map(field_nums,
+    ~ childcare_clean %>% 
+      ggplot(aes(x = .data[[.x]])) + 
+      geom_histogram()
+)
+```
+
+```{r}
+create_hist <- function(df, .x) {
+  
+  df %>% 
+    ggplot(aes(x = .data[[.x]])) + 
+    geom_histogram()
+  
+}
+```
+
+```{r}
+map(field_nums, ~create_hist(childcare_clean, .x))
+```
+
+## Building bar charts
+
+```{r}
+fields_selected <- 
+  childcare_cols %>% 
+  arrange(desc(n_distinct)) %>% 
+  filter(n_distinct < 60) %>% 
+  pull(field)
+```
+
+```{r}
+.x <- fields_selected[1]
+
+
+childcare_clean %>% 
+  mutate(field = as.character(.data[[.x]])) %>% 
+  count(field) %>% 
+  mutate(field = fct_reorder(field, n)) %>% 
+  ggplot(aes(x = n,
+             y = field)) +
+  geom_col() +
+  labs(y = .x)
+```
+
+```{r}
+bar_counts <- function(df, .x) {
+  
+  df %>% 
+    mutate(field = as.character(.data[[.x]])) %>% 
+    count(field) %>% 
+    mutate(field = fct_reorder(field, n)) %>% 
+    ggplot(aes(x = n,
+               y = field)) +
+    geom_col() +
+    labs(y = .x)
+  
+}
+```
+
+```{r}
+map(fields_selected, ~bar_counts(childcare_clean, .x))
+```
+
+## Scatterplots
+
+```{r}
+field_nums
+```
+
+```{r}
+
+map(field_nums,
+    ~ childcare_clean %>% 
+      ggplot(aes(x = site_opens_at,
+                 y = .data[[.x]])) +
+      geom_point()
+)
+```
+
+# map2
+
+```{r}
+field_combos <- 
+  expand_grid(field_1 = field_nums,
+              field_2 = field_nums)
+```
+
+
+```{r}
+map2(.x = field_combos$field_1,
+     .y = field_combos$field_2,
+     ~ childcare_clean %>% 
+       ggplot(aes(x = .data[[.x]],
+                  y = .data[[.y]])) +
+       geom_point()
+)
+```
+
+## pmap
+
+```{r}
+pmap(field_combos,
+     ~ childcare_clean %>% 
+       ggplot(aes(x = .data[[..1]],
+                  y = .data[[..2]])) +
+       geom_point()
+)
+```
+
+# Potpourri
+
+```{r}
+library(leaflet)
+```
+
+```{r}
+childcare_clean %>% 
+  leaflet() %>% 
+  setView(-75.575, 39.15, 8) %>% 
+  addProviderTiles(providers$Esri.WorldGrayCanvas,
+                   group = "Canvas") %>% 
+  addCircleMarkers(lng = ~longitude,
+                   lat = ~latitude,
+                   radius = 3,
+                   stroke = F,
+                   fillColor = "red")
+```
+```{r}
+library(plotly)
+```
+
+```{r}
+facility_start_end <-
+  childcare_clean %>% 
+  ggplot(aes(x = age_range_start,
+             y = age_range_end)) +
+  geom_point()
+
+ggplotly(facility_start_end)
+```
+
+```{r}
+library(viridis)
+```
+
+```{r}
+facility_start_end <-
+  childcare_clean %>% 
+  ggplot(aes(x = age_range_start,
+             y = age_range_end,
+             color = site_county)) +
+  scale_color_viridis_d() +
+  geom_point()
+
+ggplotly(facility_start_end)
+```
+
+```{r}
+(this_is_a_new_object <- c(3, 1, 4, 1, 5, 9, 2, 6))
+```
+
+
+
+
